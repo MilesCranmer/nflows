@@ -2,6 +2,10 @@ from typing import Union
 
 import torch
 from torch import distributions
+from numbers import Number
+from torch.distributions import constraints
+from torch.distributions.distribution import Distribution
+from torch.distributions.utils import broadcast_all
 
 
 class BoxUniform(distributions.Independent):
@@ -27,6 +31,39 @@ class BoxUniform(distributions.Independent):
         super().__init__(
             distributions.Uniform(low=low, high=high), reinterpreted_batch_ndims
         )
+
+
+class SoftUniform(distributions.Independent):
+    def __init__(
+        self,
+        low: Union[torch.Tensor, float],
+        high: Union[torch.Tensor, float],
+        reinterpreted_batch_ndims: int = 1,
+    ):
+        super().__init__(
+            distributions.Uniform(low=low, high=high), reinterpreted_batch_ndims
+        )
+        self.low, self.high = broadcast_all(low, high)
+        self.range = self.high - self.low
+
+    def log_prob(self, value):
+        if self._validate_args:
+            self._validate_sample(value)
+        low = self.low.to(value.device)
+        high = self.high.to(value.device)
+        dist_range = self.range.to(value.device)
+        lb = low.le(value).type_as(low)
+        ub = high.gt(value).type_as(low)
+        low_dist = low - value
+        upper_dist = value - high
+        raw_prob = lb * ub
+        dist_away = torch.max(torch.stack([
+            low_dist / dist_range.to(value.device),
+            upper_dist / dist_range.to(value.device)]),
+            dim=0).values
+        prob = raw_prob + (raw_prob == 0.0) * (dist_away > 0.0) * (torch.exp(-dist_away * 10) + 1e-8)
+        log_prob = torch.log(prob) - torch.log(high - low)
+        return log_prob.sum(1)
 
 
 class MG1Uniform(distributions.Uniform):
