@@ -1,5 +1,6 @@
 import torch
 import torchtestcase
+import unittest
 
 from nflows.transforms import base
 
