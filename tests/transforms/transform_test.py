@@ -14,6 +14,8 @@ class TransformTest(torchtestcase.TorchTestCase):
         if shape is not None:
             self.assertEqual(tensor.shape, torch.Size(shape))
 
+    @unittest.skipIf(torch.__version__[:3] in ['1.7'],
+                     "broken in PyTorch 1.7")
     def assert_forward_inverse_are_consistent(self, transform, inputs):
         inverse = base.InverseTransform(transform)
         identity = base.CompositeTransform([inverse, transform])
