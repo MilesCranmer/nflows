@@ -24,6 +24,7 @@ setup(
         "tensorboard",
         "torch",
         "tqdm",
+        "UMNN",
     ],
     extras_requires={
         "dev": [
